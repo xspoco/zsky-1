@@ -59,17 +59,25 @@ Q：数据库备份后，现在重新安装了程序，如何导入旧数据？
 
 A：执行 mysql -uroot -p zsky</root/zsky.sql       //假设你的旧数据库文件是/root/zsky.sql，将提示输入当前密码，直接回车即可
 
+Q：怎么修改搜索结果数量 默认1000条太少了
+
+A：修改manage.py里的max_matches=1000
+
+Q：sitemap数量默认是100太少了，怎么修改？
+
+A：修改manage.py里的sql语句 'SELECT id,create_time FROM film order by create_time desc limit 100' 里的数量
+
 Q：我以前使用的搜片大师/手撕包菜，可以迁移过来吗？
 
 A：程序在开发之初就已经考虑到从这些程序迁移过来的问题，所以你不用担心，完全可以无缝迁移。如果有需求，请联系作者QQ 153329152 付费为你提供服务
 
 Q：网站经常收到版权投诉，有没有好的解决办法？
 
-A：除了删除投诉的影片数据外，你可以使用前段Nginx、后端gunicorn+爬虫+数据库+索引在不同主机上的模式，甚至多前端模式，这样 即使前端被主机商强行封机，也能保证后端数据的安全。如果有需求，请联系作者QQ 153329152 付费为你提供服务
+A：除了删除投诉的影片数据外，你可以使用前端Nginx、后端gunicorn+爬虫+数据库+索引在不同主机上的模式，甚至多前端模式，这样 即使前端被主机商强行封机，也能保证后端数据的安全。如果有需求，请联系作者QQ 153329152 付费为你提供服务
 
 Q：我觉得这程序非常垃圾，怎么卸载？
 
-A：执行 mysql -uroot -p //将提示输入密码，输入后进入mysql管理界面，执行 drop database zsky;  （注意必须带分号)这样就删除了数据库，然后执行 rm -rf /root/zsky 就成功卸载此程序了
+A：执行 mysql -uroot -p 将提示输入密码，输入密码后进入mysql管理界面，执行 drop database zsky;  （注意必须带分号)这样就删除了数据库，然后执行yum -y remove nginx mariadb mariadb-devel mariadb-server redis&&rm -rf /root/zsky 就成功卸载此程序了
 
 如果还有疑问 加入QQ群：253524174 获取解决办法
 
