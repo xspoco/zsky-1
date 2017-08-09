@@ -4,11 +4,12 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+import base64
+import json
 import codecs
 import time
 import os
 import datetime
-#import logging
 from flask import Flask,request,render_template,session,g,url_for,redirect,flash,current_app,jsonify,send_from_directory
 from flask_login import LoginManager,UserMixin,current_user,login_required,login_user,logout_user
 from flask_sqlalchemy import SQLAlchemy
@@ -184,6 +185,9 @@ def todate_filter(s):
     return datetime.datetime.fromtimestamp(int(s)).strftime('%Y-%m-%d')
 app.add_template_filter(todate_filter,'todate')
 
+def tothunder_filter(magnet):
+    return base64.b64encode('AA'+magnet+'ZZ')
+app.add_template_filter(tothunder_filter,'tothunder')
 
 @app.route('/search',methods=['GET','POST'])
 def search():
@@ -206,7 +210,7 @@ def search_results(query=None):
     page=request.args.get('page',1,type=int)
     conn = pymysql.connect(host=DB_HOST,port=DB_PORT_SPHINX,user=DB_USER,password=DB_PASS,db=DB_NAME_SPHINX,charset=DB_CHARSET,cursorclass=pymysql.cursors.DictCursor)
     curr = conn.cursor()
-    querysql='SELECT * FROM film WHERE MATCH(%s) limit %s,20 OPTION max_matches=1000'
+    querysql='SELECT * FROM film WHERE MATCH(%s) limit %s,20 OPTION max_matches=5000'
     curr.execute(querysql,[query,(page-1)*20])
     result=curr.fetchall()
     #countsql='SELECT COUNT(*)  FROM film WHERE MATCH(%s)'
@@ -315,13 +319,13 @@ def search_results_byrequests(query):
     form.search.data=query
     return render_template('list_byrequests.html',form=form,query=query,pages=pages,page=page,hashs=result,counts=counts,taketime=taketime,tags=tags)
 
-@app.route('/main-show-id-<id>-dbid-0.html',methods=['GET','POST'])
+@app.route('/hash/<info_hash>.html',methods=['GET','POST'])
 #@cache.cached(timeout=60*60,key_prefix=make_cache_key)
-def detail(id):
+def detail(info_hash):
     conn = pymysql.connect(host=DB_HOST,port=DB_PORT_SPHINX,user=DB_USER,password=DB_PASS,db=DB_NAME_SPHINX,charset=DB_CHARSET,cursorclass=pymysql.cursors.DictCursor)
     curr = conn.cursor()
-    querysql='SELECT * FROM film WHERE id=%s'
-    curr.execute(querysql,int(id))
+    querysql='SELECT * FROM film WHERE info_hash=%s'
+    curr.execute(querysql,info_hash)
     result=curr.fetchone()
     curr.close()
     conn.close()
@@ -421,11 +425,9 @@ class HashView(ModelView):
     edit_modal = True
     can_export = True
     column_searchable_list = ['name']
-    page=1
     def get_list(self, *args, **kwargs):
         count, data = super(HashView, self).get_list(*args, **kwargs)
-        count=100
-        data=Search_Hash.query.order_by(Search_Hash.id.desc()).limit(20)
+        count=10000
         return count,data
     def is_accessible(self):
         if current_user.is_authenticated :
@@ -471,7 +473,6 @@ class UserView(ModelView):
     def inaccessible_callback(self, name, **kwargs):
         return redirect(url_for('admin.login_view'))
 
-#admin = Admin(app,name='管理中心',index_view=MyAdminIndexView(),template_mode='bootstrap2',base_template='admin/my_master.html')
 admin = Admin(app,name='管理中心',base_template='admin/my_master.html',index_view=MyAdminIndexView(name='首页',template='admin/index.html',url='/admin'))
 admin.add_view(HashView(Search_Hash, db.session,name='磁力Hash'))
 admin.add_view(KeywordsView(Search_Keywords, db.session,name='首页推荐'))
