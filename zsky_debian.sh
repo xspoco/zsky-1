@@ -52,28 +52,25 @@ EOF
 echo ulimit -HSn 65536 >> /etc/rc.local
 echo ulimit -HSn 65536 >>/root/.bash_profile
 ulimit -HSn 65536
-yum -y install wget gcc gcc-c++ python-devel mariadb mariadb-devel mariadb-server
-yum -y install psmisc net-tools lsof epel-release
-yum -y install git
-yum -y install python-pip
-yum -y install redis
+apt-get update
+apt-get -y install wget gcc build-essential libsnmp-dev libcurl4-gnutls-dev libxml2-dev  mariadb-server mariadb-client  
+apt-get -y install psmisc net-tools lsof python-dev python-pip libevent-dev python-setuptools python-requests python-gevent python-flask
+apt-get -y install git libmysqlclient-dev
+apt-get -y install python-pip
+apt-get -y install redis-server
 pip install -r requirements.txt
-#如果提示没有pip命令,或者你使用linode的主机,请取消下面4行的注释
-#wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
-#wget -qO /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-7.repo
-#yum clean metadata
-#yum makecache
 cd /root/zsky
 mkdir /root/zsky/uploads
-\cp -rpf systemctl/gunicorn.service  systemctl/indexer.service  systemctl/searchd.service /etc/systemd/system
+\cp -rpf systemctl/indexer.service  systemctl/searchd.service /etc/systemd/system
+\cp -rpf systemctl/gunicorn_debian.service  /etc/systemd/system/gunicorn.service
 systemctl daemon-reload	
-\cp -rpf /root/zsky/my.cnf  /etc/my.cnf 
-systemctl start  mariadb.service 
-systemctl enable mariadb.service
-systemctl start redis.service
-systemctl enable redis.service
-mysql -uroot  -e"create database zsky default character set utf8mb4;"  
-mysql -uroot  -e"set global interactive_timeout=31536000;set global wait_timeout=31536000;set global max_allowed_packet = 64*1024*1024;set global max_connections = 10000;" 
+\cp my_debian.cnf /etc/mysql/my.cnf
+mysql_secure_installation
+systemctl start  mysql.service 
+systemctl enable mysql.service
+systemctl start redis-server.service
+systemctl enable redis-server.service
+mysql -uroot -p -e"create database zsky default character set utf8mb4;set global interactive_timeout=31536000;set global wait_timeout=31536000;set global max_allowed_packet = 64*1024*1024;set global max_connections = 10000;"  
 #建表
 python manage.py init_db
 #按照提示输入管理员用户名、密码、邮箱
@@ -81,7 +78,7 @@ python manage.py create_user
 #杀死占用80端口的进程
 kill -9 $(lsof -i:80|tail -1|awk '"$1"!=""{print $2}')
 #配置前端nginx
-yum -y install nginx
+apt-get -y install nginx
 systemctl start  nginx.service
 systemctl enable  nginx.service
 \cp -rpf /root/zsky/nginx.conf  /etc/nginx/nginx.conf 
@@ -93,11 +90,11 @@ systemctl enable gunicorn
 #启动爬虫,开启日志并在后台运行
 nohup python simdht_worker.py >/root/zsky/spider.log 2>&1& 
 #编译sphinx,启动索引,启动搜索进程
-yum -y install git gcc cmake automake g++ mysql-devel
+apt-get -y install git gcc cmake automake g++ mysql-devel
 git clone https://github.com/wenguonideshou/sphinx-jieba.git
 cd sphinx-jieba
 git clone https://github.com/wenguonideshou/cppjieba.git
-./configure --prefix=/usr/local/sphinx-jieba
+./configure --prefix=/usr/local/sphinx-jieba 
 \cp -r cppjieba/include/cppjieba src/ 
 \cp -r cppjieba/deps/limonp src/ 
 make install
@@ -114,7 +111,7 @@ systemctl start searchd
 systemctl enable searchd
 #开机自启动
 chmod +x /etc/rc.local
-echo "systemctl start  mariadb.service" >> /etc/rc.local
+echo "systemctl start  mysql.service" >> /etc/rc.local
 echo "systemctl start  redis.service" >> /etc/rc.local
 echo "systemctl start  nginx.service" >> /etc/rc.local
 echo "systemctl start  gunicorn.service" >> /etc/rc.local
@@ -124,9 +121,9 @@ echo "cd /root/zsky" >> /etc/rc.local
 echo "nohup python simdht_worker.py>/root/zsky/spider.log 2>&1&" >> /etc/rc.local
 echo "echo never > /sys/kernel/mm/transparent_hugepage/enabled" >> /etc/rc.local
 #设置计划任务,每天早上5点进行主索引
-yum -y install  vixie-cron crontabs
-systemctl start crond.service
-systemctl enable crond.service
+apt-get -y install  cron
+systemctl start cron.service
+systemctl enable cron.service
 crontab -l > /tmp/crontab.bak
 echo '0 5 * * * /usr/local/sphinx-jieba/bin/indexer -c /root/zsky/sphinx.conf film --rotate&&/usr/local/sphinx-jieba/bin/searchd --config ~/zsky/sphinx.conf' >> /tmp/crontab.bak
 crontab /tmp/crontab.bak
